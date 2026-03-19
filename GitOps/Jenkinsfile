@@ -19,7 +19,8 @@ pipeline {
         stage('Git: Code Checkout') {
             steps {
                 script{
-                    code_checkout("https://github.com/LondheShubham153/Wanderlust-Mega-Project.git","main")
+                    // repo + devops branch
+                    code_checkout("https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git","devops")
                 }
             }
         }
@@ -39,16 +40,15 @@ pipeline {
                 script{
                     dir('kubernetes'){
                         sh """
-                            sed -i -e s/wanderlust-backend-beta.*/wanderlust-backend-beta:${params.BACKEND_DOCKER_TAG}/g backend.yaml
+                        sed -i 's|image:.*wanderlust-backend.*|image: sachitrrazdan1710/wanderlust-backend:${params.BACKEND_DOCKER_TAG}|' backend.yaml
                         """
                     }
                     
                     dir('kubernetes'){
                         sh """
-                            sed -i -e s/wanderlust-frontend-beta.*/wanderlust-frontend-beta:${params.FRONTEND_DOCKER_TAG}/g frontend.yaml
+                        sed -i 's|image:.*wanderlust-frontend.*|image: sachitrrazdan1710/wanderlust-frontend:${params.FRONTEND_DOCKER_TAG}|' frontend.yaml
                         """
                     }
-                    
                 }
             }
         }
@@ -65,60 +65,52 @@ pipeline {
                         git add .
                         
                         echo "Commiting changes: "
-                        git commit -m "Updated environment variables"
+                        git commit -m "Update image tags" || echo "No changes to commit"
                         
                         echo "Pushing changes to github: "
-                        git push https://github.com/LondheShubham153/Wanderlust-Mega-Project.git main
-                    '''
+                        git push https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git devops
+                        '''
                     }
                 }
             }
         }
     }
+
   post {
         success {
             script {
                 emailext attachLog: true,
-                from: 'trainwithshubham@gmail.com',
-                subject: "Wanderlust Application has been updated and deployed - '${currentBuild.result}'",
+                subject: "Wanderlust Deployment SUCCESS - ${env.JOB_NAME}",
                 body: """
                     <html>
                     <body>
-                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Project: ${env.JOB_NAME}</p>
-                        </div>
-                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>
-                        </div>
-                        <div style="background-color: #87CEEB; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">URL: ${env.BUILD_URL}</p>
-                        </div>
+                        <h2 style="color:green;">Deployment Successful 🚀</h2>
+                        <p><b>Project:</b> ${env.JOB_NAME}</p>
+                        <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                        <p><b>URL:</b> ${env.BUILD_URL}</p>
                     </body>
                     </html>
-            """,
-            to: 'trainwithshubham@gmail.com',
-            mimeType: 'text/html'
+                """,
+                to: 'sachitrrazdan399@gmail.com',
+                mimeType: 'text/html'
             }
         }
+
       failure {
             script {
                 emailext attachLog: true,
-                from: 'trainwithshubham@gmail.com',
-                subject: "Wanderlust Application build failed - '${currentBuild.result}'",
+                subject: "Wanderlust Deployment FAILED - ${env.JOB_NAME}",
                 body: """
                     <html>
                     <body>
-                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Project: ${env.JOB_NAME}</p>
-                        </div>
-                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>
-                        </div>
+                        <h2 style="color:red;">Deployment Failed ❌</h2>
+                        <p><b>Project:</b> ${env.JOB_NAME}</p>
+                        <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
                     </body>
                     </html>
-            """,
-            to: 'trainwithshubham@gmail.com',
-            mimeType: 'text/html'
+                """,
+                to: 'sachitrrazdan399@gmail.com',
+                mimeType: 'text/html'
             }
         }
     }

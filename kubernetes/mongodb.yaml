@@ -12,13 +12,12 @@ spec:
       app: mongo
   template:
     metadata:
-      name: mongo
       labels:
         app: mongo
     spec:
       containers:
         - name: mongo
-          image: mongo
+          image: mongo:6
           ports:
             - containerPort: 27017
           volumeMounts:
@@ -28,7 +27,6 @@ spec:
         - name: mongo-storage
           persistentVolumeClaim:
             claimName: mongo-pvc
-
 ---
 apiVersion: v1
 kind: Service
