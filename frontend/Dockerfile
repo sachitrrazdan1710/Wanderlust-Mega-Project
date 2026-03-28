@@ -1,5 +1,5 @@
 # ------------------- Stage 1: Build Stage ------------------------------
-FROM node:21 AS frontend-builder
+FROM node:21-slim AS frontend-builder
 
 # Set the working directory to /app
 WORKDIR /app
