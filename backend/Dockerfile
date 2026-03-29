@@ -17,7 +17,7 @@ RUN npm config set registry https://registry.npmjs.org/ \
 COPY . .
 
 # packages install
-RUN npm install
+RUN npm run build
 
 # tests
 RUN npm run test

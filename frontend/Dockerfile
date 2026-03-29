@@ -8,10 +8,17 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm config set registry https://registry.npmjs.org/ \
+ && npm config set fetch-retries 5 \
+ && npm config set fetch-retry-mintimeout 20000 \
+ && npm config set fetch-retry-maxtimeout 120000 \
+ && npm install
 
 # Copy the rest of the application code
 COPY . .
+
+# Build the application
+RUN npm run build
 
 # ------------------- Stage 2: Final Stage ------------------------------
 FROM node:21-slim
