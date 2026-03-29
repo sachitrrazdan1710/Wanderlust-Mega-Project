@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 
 # packages install
-RUN npm ci
+RUN npm install
 
 # tests
 RUN npm run test
