@@ -5,7 +5,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install --omit=dev
+# Install all deps (including dev for build)
+RUN npm install
 
 COPY . .
 
@@ -17,11 +18,11 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Only copy build output (VERY IMPORTANT)
-COPY --from=builder /app/dist ./dist
-
-# Install lightweight server
+# Install only serve (lightweight static server)
 RUN npm install -g serve
+
+# Copy only build output
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 5173
 
