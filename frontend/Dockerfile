@@ -1,39 +1,28 @@
-# ------------------- Stage 1: Build Stage ------------------------------
-FROM node:21-slim AS frontend-builder
+# ------------------- Stage 1: Build -------------------
+FROM node:18-alpine AS builder
 
-# Set the working directory to /app
 WORKDIR /app
 
-# Copy the package.json and package-lock.json for dependency installation
 COPY package*.json ./
 
-# Install dependencies
-RUN npm config set registry https://registry.npmjs.org/ \
- && npm config set fetch-retries 5 \
- && npm config set fetch-retry-mintimeout 20000 \
- && npm config set fetch-retry-maxtimeout 120000 \
- && npm install
+RUN npm install --omit=dev
 
-# Copy the rest of the application code
 COPY . .
 
-# Build the application
 RUN npm run build
 
-# ------------------- Stage 2: Final Stage ------------------------------
-FROM node:21-slim
 
-# Set the working directory to /app
+# ------------------- Stage 2: Production -------------------
+FROM node:18-alpine
+
 WORKDIR /app
 
-# Copy built assets and dependencies from frontend-builder stage
-COPY --from=frontend-builder /app .
+# Only copy build output (VERY IMPORTANT)
+COPY --from=builder /app/dist ./dist
 
-# Copy the .env.sample file to .env.local
-COPY .env.docker .env.local
+# Install lightweight server
+RUN npm install -g serve
 
-# Expose port 5173 for the Node.js application
 EXPOSE 5173
 
-# Define the default command to run the application in development mode
-CMD ["npm", "run", "dev", "--", "--host"]
+CMD ["serve", "-s", "dist", "-l", "5173"]
