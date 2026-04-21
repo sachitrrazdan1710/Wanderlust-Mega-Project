@@ -1,82 +1,78 @@
 @Library('Shared') _
 pipeline {
-    agent {label 'Node'}
-    
+    agent { label 'docker-agent' }
+
     parameters {
-        string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Frontend Docker tag of the image built by the CI job')
-        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Backend Docker tag of the image built by the CI job')
+        string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Frontend Docker tag passed from CI job')
+        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Backend Docker tag passed from CI job')
     }
 
     stages {
-        stage("Workspace cleanup"){
-            steps{
-                script{
-                    cleanWs()
-                }
-            }
-        }
-        
-        stage('Git: Code Checkout') {
+        stage("Validate Parameters") {
             steps {
-                script{
-                    // repo + devops branch
-                    code_checkout("https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git","devops")
-                }
-            }
-        }
-        
-        stage('Verify: Docker Image Tags') {
-            steps {
-                script{
+                script {
+                    if (!params.FRONTEND_DOCKER_TAG?.trim() || !params.BACKEND_DOCKER_TAG?.trim()) {
+                        error("Both FRONTEND_DOCKER_TAG and BACKEND_DOCKER_TAG must be provided.")
+                    }
                     echo "FRONTEND_DOCKER_TAG: ${params.FRONTEND_DOCKER_TAG}"
                     echo "BACKEND_DOCKER_TAG: ${params.BACKEND_DOCKER_TAG}"
                 }
             }
         }
-        
-        
-        stage("Update: Kubernetes manifests"){
-            steps{
-                script{
-                    dir('kubernetes'){
+
+        stage("Workspace Cleanup") {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Git: Code Checkout') {
+            steps {
+                script {
+                    clone("https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git", "devops")
+                }
+            }
+        }
+
+        stage("Update Kubernetes Manifests") {
+            steps {
+                script {
+                    dir('kubernetes') {
                         sh """
-                        sed -i 's|image:.*wanderlust-backend.*|image: sachitrrazdan1710/wanderlust-backend:${params.BACKEND_DOCKER_TAG}|' backend.yaml
-                        """
-                    }
-                    
-                    dir('kubernetes'){
-                        sh """
-                        sed -i 's|image:.*wanderlust-frontend.*|image: sachitrrazdan1710/wanderlust-frontend:${params.FRONTEND_DOCKER_TAG}|' frontend.yaml
+                        sed -i 's|image: .*wanderlust-backend:.*|image: sachitrrazdan1710/wanderlust-backend:${params.BACKEND_DOCKER_TAG}|' backend.yaml
+                        sed -i 's|image: .*wanderlust-frontend:.*|image: sachitrrazdan1710/wanderlust-frontend:${params.FRONTEND_DOCKER_TAG}|' frontend.yaml
+
+                        echo "Updated backend.yaml:"
+                        grep 'image:' backend.yaml || true
+
+                        echo "Updated frontend.yaml:"
+                        grep 'image:' frontend.yaml || true
                         """
                     }
                 }
             }
         }
-        
-        stage("Git: Code update and push to GitHub"){
-            steps{
-                script{
+
+        stage("Git: Commit and Push Manifest Changes") {
+            steps {
+                script {
                     withCredentials([gitUsernamePassword(credentialsId: 'Github-cred', gitToolName: 'Default')]) {
-                        sh '''
-                        echo "Checking repository status: "
+                        sh """
+                        git config user.name "Jenkins"
+                        git config user.email "jenkins@local"
+
                         git status
-                    
-                        echo "Adding changes to git: "
-                        git add .
-                        
-                        echo "Commiting changes: "
-                        git commit -m "Update image tags" || echo "No changes to commit"
-                        
-                        echo "Pushing changes to github: "
-                        git push https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git devops
-                        '''
+                        git add kubernetes/backend.yaml kubernetes/frontend.yaml
+                        git commit -m "Update Kubernetes manifests: backend=${params.BACKEND_DOCKER_TAG}, frontend=${params.FRONTEND_DOCKER_TAG}" || echo "No changes to commit"
+                        git push origin devops
+                        """
                     }
                 }
             }
         }
     }
 
-  post {
+    post {
         success {
             script {
                 emailext attachLog: true,
@@ -87,6 +83,8 @@ pipeline {
                         <h2 style="color:green;">Deployment Successful 🚀</h2>
                         <p><b>Project:</b> ${env.JOB_NAME}</p>
                         <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                        <p><b>Frontend Tag:</b> ${params.FRONTEND_DOCKER_TAG}</p>
+                        <p><b>Backend Tag:</b> ${params.BACKEND_DOCKER_TAG}</p>
                         <p><b>URL:</b> ${env.BUILD_URL}</p>
                     </body>
                     </html>
@@ -96,7 +94,7 @@ pipeline {
             }
         }
 
-      failure {
+        failure {
             script {
                 emailext attachLog: true,
                 subject: "Wanderlust Deployment FAILED - ${env.JOB_NAME}",
@@ -106,6 +104,8 @@ pipeline {
                         <h2 style="color:red;">Deployment Failed ❌</h2>
                         <p><b>Project:</b> ${env.JOB_NAME}</p>
                         <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                        <p><b>Frontend Tag:</b> ${params.FRONTEND_DOCKER_TAG}</p>
+                        <p><b>Backend Tag:</b> ${params.BACKEND_DOCKER_TAG}</p>
                     </body>
                     </html>
                 """,
