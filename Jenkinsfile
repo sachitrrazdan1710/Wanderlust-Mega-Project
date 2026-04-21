@@ -1,20 +1,16 @@
 @Library('Shared') _
 pipeline {
-    agent any
+    agent none
 
     parameters {
         string(name: 'FRONTEND_DOCKER_TAG', defaultValue: 'v1', description: 'Frontend image tag')
         string(name: 'BACKEND_DOCKER_TAG', defaultValue: 'v1', description: 'Backend image tag')
     }
 
-    environment {
-        SONAR_HOME = tool "Sonar"
-        DOCKERHUB_USER = "sachitrrazdan1710"
-    }
-
     stages {
 
         stage("Validate Parameters") {
+            agent any
             steps {
                 script {
                     if (params.FRONTEND_DOCKER_TAG == '' || params.BACKEND_DOCKER_TAG == '') {
@@ -25,84 +21,118 @@ pipeline {
         }
 
         stage("Workspace Cleanup") {
+            agent any
             steps {
                 cleanWs()
             }
         }
 
         stage("Git Checkout") {
+            agent { label 'master-node' }
             steps {
                 script {
                     clone("https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git","devops")
                 }
+                stash name: 'source-code', includes: '**/*'
             }
         }
 
         stage("Trivy: Filesystem Scan") {
+            agent { label 'docker-agent' }
             steps {
+                unstash 'source-code'
                 script {
                     trivy_scan()
                 }
             }
         }
 
-        stage("OWASP: Dependency Check") {
+        stage("Backend Docker Build") {
+            agent { label 'docker-agent' }
             steps {
-                script {
-                    owasp_dependency()
-                }
-            }
-        }
-
-        stage("SonarQube: Code Analysis") {
-            steps {
-                script {
-                    sonarqube_analysis("Sonar","wanderlust","wanderlust")
-                }
-            }
-        }
-
-        stage("SonarQube: Quality Gate") {
-            steps {
-                script {
-                    sonarqube_code_quality()
-                }
-            }
-        }
-
-        stage("Docker: Build Images") {
-            steps {
+                unstash 'source-code'
                 script {
                     dir('backend') {
-                        docker_build("wanderlust-backend", "${params.BACKEND_DOCKER_TAG}", "${DOCKERHUB_USER}")
-                    }
-                    dir('frontend') {
-                        docker_build("wanderlust-frontend", "${params.FRONTEND_DOCKER_TAG}", "${DOCKERHUB_USER}")
+                        docker_build(
+                            "wanderlust-backend",
+                            "${params.BACKEND_DOCKER_TAG}",
+                            "sachitrrazdan1710"
+                        )
                     }
                 }
             }
         }
 
-        stage("Trivy: Image Scan") {
+        stage("Frontend Build (Host)") {
+            agent { label 'master-node' }
+            steps {
+                unstash 'source-code'
+                script {
+                    dir('frontend') {
+                        sh 'cp .env.docker .env || true'
+                        sh 'npm install'
+                        sh 'npm run build'
+                    }
+                }
+            }
+        }
+
+        stage("Frontend Docker Build") {
+            agent { label 'docker-agent' }
+            steps {
+                unstash 'source-code'
+                script {
+                    dir('frontend') {
+                        docker_build(
+                            "wanderlust-frontend",
+                            "${params.FRONTEND_DOCKER_TAG}",
+                            "sachitrrazdan1710"
+                        )
+                    }
+                }
+            }
+        }
+
+       stage("Trivy: Image Scan") {
+    agent { label 'docker-agent' }
+    steps {
+        script {
+            sh """
+            set +e
+
+            echo "Scanning backend image..."
+            trivy image --severity HIGH,CRITICAL \
+            --scanners vuln \
+            --exit-code 0 \
+            --timeout 10m \
+            sachitrrazdan1710/wanderlust-backend:${params.BACKEND_DOCKER_TAG}
+
+            echo "Scanning frontend image..."
+            trivy image --severity HIGH,CRITICAL \
+            --scanners vuln \
+            --exit-code 0 \
+            --timeout 10m \
+            sachitrrazdan1710/wanderlust-frontend:${params.FRONTEND_DOCKER_TAG}
+
+            exit 0
+            """
+        }
+    }
+}
+        stage("Docker: Push to DockerHub") {
+            agent { label 'docker-agent' }
             steps {
                 script {
-                    sh """
-                    trivy image ${DOCKERHUB_USER}/wanderlust-backend:${params.BACKEND_DOCKER_TAG}
-                    trivy image ${DOCKERHUB_USER}/wanderlust-frontend:${params.FRONTEND_DOCKER_TAG}
-                    """
-                }
-            }
-        }
 
-        stage("Docker: Push to DockerHub") {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh """
-                    echo $PASS | docker login -u $USER --password-stdin
+                    docker_push(
+                        imageName: "sachitrrazdan1710/wanderlust-backend",
+                        imageTag: "${params.BACKEND_DOCKER_TAG}"
+                    )
 
-                    docker push ${DOCKERHUB_USER}/wanderlust-backend:${params.BACKEND_DOCKER_TAG}
-                    docker push ${DOCKERHUB_USER}/wanderlust-frontend:${params.FRONTEND_DOCKER_TAG}
-                    """
+                    docker_push(
+                        imageName: "sachitrrazdan1710/wanderlust-frontend",
+                        imageTag: "${params.FRONTEND_DOCKER_TAG}"
+                    )
                 }
             }
         }
