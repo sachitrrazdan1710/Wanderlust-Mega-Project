@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: sachitrrazdan1710/wanderlust-backend:v5
+          image: sachitrrazdan1710/wanderlust-backend:v5.1
           ports:
             - containerPort: 8080
           env:
