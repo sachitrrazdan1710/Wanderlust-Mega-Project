@@ -539,7 +539,7 @@ Integration with ServiceNow
 
     -   json to put in RAW
    ```bash
-       {
+{
   "short_description": "Test incident from Wanderlust project",
   "description": "This is a test incident created from ServiceNow REST API Explorer for Jenkins integration.",
   "urgency": "2",
@@ -660,7 +660,7 @@ Go to:
 Jenkins → Manage Jenkins → Credentials
 <img src="Assets\Credentials in jenkins.png">
 
-in pipeline code add 
+- in pipeline code add 
 ```bash
 failure {
              node('docker-agent'){
