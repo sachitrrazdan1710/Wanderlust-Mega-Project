@@ -699,3 +699,285 @@ open servicenow instance and check the incident created
 <img src="Assets\servicenow incident table list.png">
      
 
+# 
+logs of part 2 change request approval 
+```bash
+Started by upstream project "Wanderlust-CI
+" build number 51
+
+originally caused by:
+ Started by user Sachitr Razdan
+
+Loading library Shared@main
+Attempting to resolve main from remote references...
+ > git --version # timeout=10
+ > git --version # 'git version 2.43.0'
+ > git ls-remote -h -- https://github.com/sachitrrazdan1710/jenkins-shared-libraries.git # timeout=10
+Found match: refs/heads/main revision 707bbef10d1a4ecfe623f4000367a3e06317af95
+The recommended git tool is: NONE
+No credentials specified
+ > git rev-parse --resolve-git-dir /home/sachitr_/.jenkins/workspace/Wanderlust-CD@libs/ff0f334b68dd5846124354f3515e472c3632f2de9cfabecbb32d27eddcbf1551/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://github.com/sachitrrazdan1710/jenkins-shared-libraries.git # timeout=10
+Fetching without tags
+Fetching upstream changes from https://github.com/sachitrrazdan1710/jenkins-shared-libraries.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.43.0'
+ > git fetch --no-tags --force --progress -- https://github.com/sachitrrazdan1710/jenkins-shared-libraries.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+Checking out Revision 707bbef10d1a4ecfe623f4000367a3e06317af95 (main)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 707bbef10d1a4ecfe623f4000367a3e06317af95 # timeout=10
+Commit message: "Modify docker build command to exclude --pull option"
+ > git rev-list --no-walk 707bbef10d1a4ecfe623f4000367a3e06317af95 # timeout=10
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on docker-agent
+ in /home/sachitr_/jenkins-agent/workspace/Wanderlust-CD
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Create Change Request)
+[Pipeline] withCredentials
+Masking supported pattern matches of $SN_PASS
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X POST https://dev392424.service-now.com/api/now/table/change_request --user admin:**** --header Content-Type: application/json --data {
+                            "short_description": "Deploy Wanderlust Application",
+                            "description": "CD Pipeline: Wanderlust-CD Build 12",
+                            "assignment_group": "17bae5913b6cc310aee6bf0f23e45a2e",
+                            "type": "normal",
+                            "risk": "3",
+                            "impact": "3"
+                          }
+[Pipeline] readJSON
+[Pipeline] echo
+Created Change: CHG0030006
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Request Approval)
+[Pipeline] withCredentials
+Masking supported pattern matches of $SN_PASS
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X PATCH https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:**** --header Content-Type: application/json --data {"state":"-3"}
+{"error":{"message":"Operation Failed","detail":"Operation against file 'change_request' was aborted by Business Rule 'Change Model: Check State Transition^e7d8eed53b240710aee6bf0f23e45a01'. Business Rule Stack:Change Model: Check State Transition"},"status":"failure"}
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Wait for Approval)
+[Pipeline] withCredentials
+Masking supported pattern matches of $SN_PASS
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+⏳ Waiting for manager approval...
+[Pipeline] timeout
+Timeout set to expire in 30 min
+[Pipeline] {
+[Pipeline] waitUntil
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: requested
+[Pipeline] }
+Will try again after 0.25 sec
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: requested
+[Pipeline] }
+Will try again after 0.3 sec
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: requested
+[Pipeline] }
+Will try again after 0.36 sec
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: requested
+[Pipeline] }
+Will try again after 0.43 sec
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: requested
+[Pipeline] }
+Will try again after 0.51 sec
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: requested
+[Pipeline] }
+Will try again after 0.62 sec
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: requested
+[Pipeline] }
+Will try again after 0.74 sec
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: requested
+[Pipeline] }
+Will try again after 0.89 sec
+[Pipeline] {
+[Pipeline] sh
++ curl -s -X GET https://dev392424.service-now.com/api/now/table/change_request/e7d8eed53b240710aee6bf0f23e45a01 --user admin:****
+[Pipeline] readJSON
+[Pipeline] echo
+Approval status: approved
+[Pipeline] }
+[Pipeline] // waitUntil
+[Pipeline] }
+[Pipeline] // timeout
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Validate Parameters)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+FRONTEND_DOCKER_TAG: v5.1
+[Pipeline] echo
+BACKEND_DOCKER_TAG: v5.1
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Workspace Cleanup)
+[Pipeline] cleanWs
+[WS-CLEANUP] Deleting project workspace...
+[WS-CLEANUP] Deferred wipeout is used...
+[WS-CLEANUP] done
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Git: Code Checkout)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] git
+The recommended git tool is: NONE
+No credentials specified
+Cloning the remote Git repository
+Cloning repository https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git
+ > git init /home/sachitr_/jenkins-agent/workspace/Wanderlust-CD # timeout=10
+Fetching upstream changes from https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.34.1'
+ > git fetch --tags --force --progress -- https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+Avoid second fetch
+Checking out Revision b79058900f6f4ec31464c210af109d54f49e7c35 (refs/remotes/origin/devops)
+ > git config remote.origin.url https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git # timeout=10
+ > git config --add remote.origin.fetch +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git rev-parse refs/remotes/origin/devops^{commit} # timeout=10
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f b79058900f6f4ec31464c210af109d54f49e7c35 # timeout=10
+Commit message: "Update Kubernetes manifests: backend=v5.1, frontend=v5.1"
+ > git branch -a -v --no-abbrev # timeout=10
+ > git checkout -b devops b79058900f6f4ec31464c210af109d54f49e7c35 # timeout=10
+ > git rev-list --no-walk 8c6f7c1dd8047d23a489c7a7b6cf4ecbc22d6eed # timeout=10
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Update Kubernetes Manifests)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] dir
+Running in /home/sachitr_/jenkins-agent/workspace/Wanderlust-CD/kubernetes
+[Pipeline] {
+[Pipeline] sh
++ sed -i s|image: .*wanderlust-backend:.*|image: sachitrrazdan1710/wanderlust-backend:v5.1| backend.yaml
++ sed -i s|image: .*wanderlust-frontend:.*|image: sachitrrazdan1710/wanderlust-frontend:v5.1| frontend.yaml
++ echo Updated backend.yaml:
+Updated backend.yaml:
++ grep image: backend.yaml
+          image: sachitrrazdan1710/wanderlust-backend:v5.1
++ echo Updated frontend.yaml:
+Updated frontend.yaml:
++ grep image: frontend.yaml
+          image: sachitrrazdan1710/wanderlust-frontend:v5.1
+[Pipeline] }
+[Pipeline] // dir
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Git: Commit and Push Manifest Changes)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] withCredentials
+ > git --version # timeout=10
+ > git --version # 'git version 2.43.0'
+Masking supported pattern matches of $GIT_PASSWORD or $GIT_ASKPASS
+[Pipeline] {
+[Pipeline] sh
++ git config user.name Jenkins
++ git config user.email jenkins@local
++ git status
+On branch devops
+nothing to commit, working tree clean
++ git add kubernetes/backend.yaml kubernetes/frontend.yaml
++ git commit -m Update Kubernetes manifests: backend=v5.1, frontend=v5.1
+On branch devops
+nothing to commit, working tree clean
++ echo No changes to commit
+No changes to commit
++ git push origin devops
+Everything up-to-date
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] emailext
+Sending email to: sachitrrazdan399@gmail.com
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+Finished: SUCCESS
+```
