@@ -526,8 +526,6 @@ eksctl delete cluster --name=wanderlust --region=us-west-1
 ```
 
 #
-
-#
 Integration with ServiceNow 
 1. create incident
    -> Something broke log into ServiceNow
@@ -537,8 +535,8 @@ Integration with ServiceNow
        -> Automatically creates incident
        <img src="Assets\rest api explorer.png">
 
-    -   json to put in RAW
-   ```bash
+- <b> json to put in RAW</b>
+```bash
 {
   "short_description": "Test incident from Wanderlust project",
   "description": "This is a test incident created from ServiceNow REST API Explorer for Jenkins integration.",
@@ -546,11 +544,11 @@ Integration with ServiceNow
   "impact": "2"
 }
 ```
-#
+
 <img src="Assets\rest api response.png">
-#
-  - Response Body:
-    ```bash
+
+- <b> Response Body: </b>
+```bash
     {
   "result": {
     "parent": "",
@@ -651,7 +649,6 @@ Integration with ServiceNow
   }
 }
 ```
-#
 
 - Step 2 - Connect Jenkins -> ServiceNow
 
