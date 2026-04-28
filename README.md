@@ -548,8 +548,8 @@ Integration with ServiceNow
 ```
 #
 <img src="Assets\rest api response.png">
-
-  -  Response Body:
+#
+  - Response Body:
     ```bash
     {
   "result": {
@@ -650,9 +650,10 @@ Integration with ServiceNow
     "category": "inquiry"
   }
 }
-~~~
+```
 #
--Step 2 - Connect Jenkins -> ServiceNow
+
+- Step 2 - Connect Jenkins -> ServiceNow
 
 Add credentials to Jenkins
 Go to:
@@ -684,8 +685,7 @@ failure {
      }
 ```
 #
-
-     Make the pipeline fail to test it by adding a stage:
+  - Make the pipeline fail to test it by adding a stage:
 ```bash
      stage('Force Failure Test') {
     steps {
