@@ -695,6 +695,7 @@ run the pipeline and check logs
 <img src="Assets\jenkins logs.png">
 
 open servicenow instance and check the incident created 
+
 <img src="Assets\servicenow incident table list.png">
      
 
