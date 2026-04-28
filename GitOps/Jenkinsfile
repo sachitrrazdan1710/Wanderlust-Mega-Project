@@ -8,6 +8,102 @@ pipeline {
     }
 
     stages {
+        
+        stage('Create Change Request') {
+        steps {
+            withCredentials([usernamePassword(
+                credentialsId: 'servicenow-creds',
+                usernameVariable: 'SN_USER',
+                passwordVariable: 'SN_PASS'
+            )]) {
+                script {
+                    def response = sh(
+                        script: '''
+                        curl -s -X POST "https://dev392424.service-now.com/api/now/table/change_request" \
+                          --user "$SN_USER:$SN_PASS" \
+                          --header "Content-Type: application/json" \
+                          --data "{
+                            \\"short_description\\": \\"Deploy Wanderlust Application\\",
+                            \\"description\\": \\"CD Pipeline: $JOB_NAME Build $BUILD_NUMBER\\",
+                            \\"assignment_group\\": \\"17bae5913b6cc310aee6bf0f23e45a2e\\",
+                            \\"type\\": \\"normal\\",
+                            \\"risk\\": \\"3\\",
+                            \\"impact\\": \\"3\\"
+                          }"
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    def json = readJSON text: response
+                    env.CHANGE_SYS_ID = json.result.sys_id
+                    env.CHANGE_NUMBER = json.result.number
+
+                    echo "Created Change: ${env.CHANGE_NUMBER}"
+                }
+            }
+        }
+    }
+
+stage('Request Approval') {
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'servicenow-creds',
+            usernameVariable: 'SN_USER',
+            passwordVariable: 'SN_PASS'
+        )]) {
+            sh '''
+            curl -s -X PATCH "https://dev392424.service-now.com/api/now/table/change_request/$CHANGE_SYS_ID" \
+              --user "$SN_USER:$SN_PASS" \
+              --header "Content-Type: application/json" \
+              --data '{"state":"-3"}'
+            '''
+        }
+    }
+}
+   stage('Wait for Approval') {
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'servicenow-creds',
+            usernameVariable: 'SN_USER',
+            passwordVariable: 'SN_PASS'
+        )]) {
+            script {
+                try {
+                    echo "⏳ Waiting for manager approval..."
+
+                    timeout(time: 30, unit: 'MINUTES') {
+                        waitUntil {
+                            def response = sh(
+                                script: '''
+                                curl -s -X GET "https://dev392424.service-now.com/api/now/table/change_request/$CHANGE_SYS_ID" \
+                                --user "$SN_USER:$SN_PASS"
+                                ''',
+                                returnStdout: true
+                            ).trim()
+
+                            def json = readJSON text: response
+
+                            // Prevent crash if API fails
+                            if (json == null || json.result == null) {
+                                echo "⚠️ API issue, retrying..."
+                                sleep 10
+                                return false
+                            }
+
+                            def approval = json.result.approval
+                            echo "Approval status: ${approval}"
+
+                            return approval == "approved"
+                        }
+                    }
+
+                } catch (err) {
+                    echo "⚠️ Approval not received in time — continuing pipeline"
+                }
+            }
+        }
+    }
+}
         stage("Validate Parameters") {
             steps {
                 script {
