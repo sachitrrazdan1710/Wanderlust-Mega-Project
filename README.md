@@ -528,7 +528,7 @@ eksctl delete cluster --name=wanderlust --region=us-west-1
 #
 
 #
-Integration with servicenow 
+Integration with ServiceNow 
 1. create incident
    -> Something broke log into ServiceNow
 
@@ -537,17 +537,20 @@ Integration with servicenow
        -> Automatically creates incident
        <img src="Assets\rest api explorer.png">
 
-       json to put in RAW
+    -   json to put in RAW
+   ```bash
        {
   "short_description": "Test incident from Wanderlust project",
   "description": "This is a test incident created from ServiceNow REST API Explorer for Jenkins integration.",
   "urgency": "2",
   "impact": "2"
 }
-
+```
+#
 <img src="Assets\rest api response.png">
 
-    Response Body:
+  -  Response Body:
+    ```bash
     {
   "result": {
     "parent": "",
@@ -647,9 +650,9 @@ Integration with servicenow
     "category": "inquiry"
   }
 }
-
-
-Step 2 - Connect Jenkins -> ServiceNow
+~~~
+#
+-Step 2 - Connect Jenkins -> ServiceNow
 
 Add credentials to Jenkins
 Go to:
@@ -657,6 +660,7 @@ Jenkins → Manage Jenkins → Credentials
 <img src="Assets\Credentials in jenkins.png">
 
 in pipeline code add 
+```bash
 failure {
              node('docker-agent'){
         withCredentials([usernamePassword(
@@ -678,16 +682,17 @@ failure {
           }
        }
      }
-
+```
+#
 
      Make the pipeline fail to test it by adding a stage:
-
+```bash
      stage('Force Failure Test') {
     steps {
         sh 'exit 1'
     }
 }
-
+```
 run the pipeline and check logs 
 
 <img src="Assets\jenkins logs.png">
@@ -695,4 +700,4 @@ run the pipeline and check logs
 open servicenow instance and check the incident created 
 <img src="Assets\servicenow incident table list.png">
      
-#
+
