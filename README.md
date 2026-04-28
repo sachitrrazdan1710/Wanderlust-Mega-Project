@@ -526,3 +526,14 @@ eksctl delete cluster --name=wanderlust --region=us-west-1
 ```
 
 #
+
+#
+Integration with servicenow 
+1. create incident
+   -> Something broke log into ServiceNow
+
+   Example:
+     Jenkins pipeline fails
+       -> Automatically creates incident
+     
+#
