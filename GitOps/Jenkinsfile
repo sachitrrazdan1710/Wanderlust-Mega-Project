@@ -1,124 +1,212 @@
 @Library('Shared') _
 pipeline {
-    agent {label 'Node'}
-    
+    agent { label 'docker-agent' }
+
     parameters {
-        string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Frontend Docker tag of the image built by the CI job')
-        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Backend Docker tag of the image built by the CI job')
+        string(name: 'FRONTEND_DOCKER_TAG', defaultValue: '', description: 'Frontend Docker tag passed from CI job')
+        string(name: 'BACKEND_DOCKER_TAG', defaultValue: '', description: 'Backend Docker tag passed from CI job')
     }
 
     stages {
-        stage("Workspace cleanup"){
-            steps{
-                script{
-                    cleanWs()
+        
+        stage('Create Change Request') {
+        steps {
+            withCredentials([usernamePassword(
+                credentialsId: 'servicenow-creds',
+                usernameVariable: 'SN_USER',
+                passwordVariable: 'SN_PASS'
+            )]) {
+                script {
+                    def response = sh(
+                        script: '''
+                        curl -s -X POST "https://dev392424.service-now.com/api/now/table/change_request" \
+                          --user "$SN_USER:$SN_PASS" \
+                          --header "Content-Type: application/json" \
+                          --data "{
+                            \\"short_description\\": \\"Deploy Wanderlust Application\\",
+                            \\"description\\": \\"CD Pipeline: $JOB_NAME Build $BUILD_NUMBER\\",
+                            \\"assignment_group\\": \\"17bae5913b6cc310aee6bf0f23e45a2e\\",
+                            \\"type\\": \\"normal\\",
+                            \\"risk\\": \\"3\\",
+                            \\"impact\\": \\"3\\"
+                          }"
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    def json = readJSON text: response
+                    env.CHANGE_SYS_ID = json.result.sys_id
+                    env.CHANGE_NUMBER = json.result.number
+
+                    echo "Created Change: ${env.CHANGE_NUMBER}"
                 }
             }
         }
-        
-        stage('Git: Code Checkout') {
-            steps {
-                script{
-                    code_checkout("https://github.com/LondheShubham153/Wanderlust-Mega-Project.git","main")
+    }
+
+stage('Request Approval') {
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'servicenow-creds',
+            usernameVariable: 'SN_USER',
+            passwordVariable: 'SN_PASS'
+        )]) {
+            sh '''
+            curl -s -X PATCH "https://dev392424.service-now.com/api/now/table/change_request/$CHANGE_SYS_ID" \
+              --user "$SN_USER:$SN_PASS" \
+              --header "Content-Type: application/json" \
+              --data '{"state":"-3"}'
+            '''
+        }
+    }
+}
+   stage('Wait for Approval') {
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'servicenow-creds',
+            usernameVariable: 'SN_USER',
+            passwordVariable: 'SN_PASS'
+        )]) {
+            script {
+                try {
+                    echo "⏳ Waiting for manager approval..."
+
+                    timeout(time: 30, unit: 'MINUTES') {
+                        waitUntil {
+                            def response = sh(
+                                script: '''
+                                curl -s -X GET "https://dev392424.service-now.com/api/now/table/change_request/$CHANGE_SYS_ID" \
+                                --user "$SN_USER:$SN_PASS"
+                                ''',
+                                returnStdout: true
+                            ).trim()
+
+                            def json = readJSON text: response
+
+                            // Prevent crash if API fails
+                            if (json == null || json.result == null) {
+                                echo "⚠️ API issue, retrying..."
+                                sleep 10
+                                return false
+                            }
+
+                            def approval = json.result.approval
+                            echo "Approval status: ${approval}"
+
+                            return approval == "approved"
+                        }
+                    }
+
+                } catch (err) {
+                    echo "⚠️ Approval not received in time — continuing pipeline"
                 }
             }
         }
-        
-        stage('Verify: Docker Image Tags') {
+    }
+}
+        stage("Validate Parameters") {
             steps {
-                script{
+                script {
+                    if (!params.FRONTEND_DOCKER_TAG?.trim() || !params.BACKEND_DOCKER_TAG?.trim()) {
+                        error("Both FRONTEND_DOCKER_TAG and BACKEND_DOCKER_TAG must be provided.")
+                    }
                     echo "FRONTEND_DOCKER_TAG: ${params.FRONTEND_DOCKER_TAG}"
                     echo "BACKEND_DOCKER_TAG: ${params.BACKEND_DOCKER_TAG}"
                 }
             }
         }
-        
-        
-        stage("Update: Kubernetes manifests"){
-            steps{
-                script{
-                    dir('kubernetes'){
-                        sh """
-                            sed -i -e s/wanderlust-backend-beta.*/wanderlust-backend-beta:${params.BACKEND_DOCKER_TAG}/g backend.yaml
-                        """
-                    }
-                    
-                    dir('kubernetes'){
-                        sh """
-                            sed -i -e s/wanderlust-frontend-beta.*/wanderlust-frontend-beta:${params.FRONTEND_DOCKER_TAG}/g frontend.yaml
-                        """
-                    }
-                    
+
+        stage("Workspace Cleanup") {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Git: Code Checkout') {
+            steps {
+                script {
+                    clone("https://github.com/sachitrrazdan1710/Wanderlust-Mega-Project.git", "devops")
                 }
             }
         }
-        
-        stage("Git: Code update and push to GitHub"){
-            steps{
-                script{
+
+        stage("Update Kubernetes Manifests") {
+            steps {
+                script {
+                    dir('kubernetes') {
+                        sh """
+                        sed -i 's|image: .*wanderlust-backend:.*|image: sachitrrazdan1710/wanderlust-backend:${params.BACKEND_DOCKER_TAG}|' backend.yaml
+                        sed -i 's|image: .*wanderlust-frontend:.*|image: sachitrrazdan1710/wanderlust-frontend:${params.FRONTEND_DOCKER_TAG}|' frontend.yaml
+
+                        echo "Updated backend.yaml:"
+                        grep 'image:' backend.yaml || true
+
+                        echo "Updated frontend.yaml:"
+                        grep 'image:' frontend.yaml || true
+                        """
+                    }
+                }
+            }
+        }
+
+        stage("Git: Commit and Push Manifest Changes") {
+            steps {
+                script {
                     withCredentials([gitUsernamePassword(credentialsId: 'Github-cred', gitToolName: 'Default')]) {
-                        sh '''
-                        echo "Checking repository status: "
+                        sh """
+                        git config user.name "Jenkins"
+                        git config user.email "jenkins@local"
+
                         git status
-                    
-                        echo "Adding changes to git: "
-                        git add .
-                        
-                        echo "Commiting changes: "
-                        git commit -m "Updated environment variables"
-                        
-                        echo "Pushing changes to github: "
-                        git push https://github.com/LondheShubham153/Wanderlust-Mega-Project.git main
-                    '''
+                        git add kubernetes/backend.yaml kubernetes/frontend.yaml
+                        git commit -m "Update Kubernetes manifests: backend=${params.BACKEND_DOCKER_TAG}, frontend=${params.FRONTEND_DOCKER_TAG}" || echo "No changes to commit"
+                        git push origin devops
+                        """
                     }
                 }
             }
         }
     }
-  post {
+
+    post {
         success {
             script {
                 emailext attachLog: true,
-                from: 'trainwithshubham@gmail.com',
-                subject: "Wanderlust Application has been updated and deployed - '${currentBuild.result}'",
+                subject: "Wanderlust Deployment SUCCESS - ${env.JOB_NAME}",
                 body: """
                     <html>
                     <body>
-                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Project: ${env.JOB_NAME}</p>
-                        </div>
-                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>
-                        </div>
-                        <div style="background-color: #87CEEB; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">URL: ${env.BUILD_URL}</p>
-                        </div>
+                        <h2 style="color:green;">Deployment Successful 🚀</h2>
+                        <p><b>Project:</b> ${env.JOB_NAME}</p>
+                        <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                        <p><b>Frontend Tag:</b> ${params.FRONTEND_DOCKER_TAG}</p>
+                        <p><b>Backend Tag:</b> ${params.BACKEND_DOCKER_TAG}</p>
+                        <p><b>URL:</b> ${env.BUILD_URL}</p>
                     </body>
                     </html>
-            """,
-            to: 'trainwithshubham@gmail.com',
-            mimeType: 'text/html'
+                """,
+                to: 'sachitrrazdan399@gmail.com',
+                mimeType: 'text/html'
             }
         }
-      failure {
+
+        failure {
             script {
                 emailext attachLog: true,
-                from: 'trainwithshubham@gmail.com',
-                subject: "Wanderlust Application build failed - '${currentBuild.result}'",
+                subject: "Wanderlust Deployment FAILED - ${env.JOB_NAME}",
                 body: """
                     <html>
                     <body>
-                        <div style="background-color: #FFA07A; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Project: ${env.JOB_NAME}</p>
-                        </div>
-                        <div style="background-color: #90EE90; padding: 10px; margin-bottom: 10px;">
-                            <p style="color: black; font-weight: bold;">Build Number: ${env.BUILD_NUMBER}</p>
-                        </div>
+                        <h2 style="color:red;">Deployment Failed ❌</h2>
+                        <p><b>Project:</b> ${env.JOB_NAME}</p>
+                        <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                        <p><b>Frontend Tag:</b> ${params.FRONTEND_DOCKER_TAG}</p>
+                        <p><b>Backend Tag:</b> ${params.BACKEND_DOCKER_TAG}</p>
                     </body>
                     </html>
-            """,
-            to: 'trainwithshubham@gmail.com',
-            mimeType: 'text/html'
+                """,
+                to: 'sachitrrazdan399@gmail.com',
+                mimeType: 'text/html'
             }
         }
     }
