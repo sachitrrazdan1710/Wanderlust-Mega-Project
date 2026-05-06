@@ -982,3 +982,4 @@ Sending email to: sachitrrazdan399@gmail.com
 Finished: SUCCESS
 ```
 ![image](Assets\change request approved in servicenow.png)
+<img src="Assets\change request approved in servicenow.png">
